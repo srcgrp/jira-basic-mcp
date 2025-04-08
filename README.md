@@ -27,13 +27,13 @@ JIRA_PASSWORD=your-api-token
 
 ## Configuration
 
-Add to MCP settings (usually in `~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`):
+Add to Cline MCP settings (usually in `~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`):
 ```json
 {
   "mcpServers": {
     "jira": {
       "command": "node",
-      "args": ["/path/to/jira-cline-mcp/build/index.js"],
+      "args": ["/path/to/jira-basic-mcp/build/index.js"],
       "env": {
         "JIRA_HOST": "your-instance.atlassian.net",
         "JIRA_EMAIL": "your-email@example.com",
