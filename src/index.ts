@@ -21,13 +21,13 @@ const ajv = new Ajv();
 // --- Jira Configuration ---
 const JIRA_HOST = process.env.JIRA_HOST;
 const JIRA_EMAIL = process.env.JIRA_EMAIL;
-const JIRA_PASSWORD = process.env.JIRA_PASSWORD;
+const JIRA_API_TOKEN = process.env.JIRA_API_TOKEN;
 
-if (!JIRA_HOST || !JIRA_EMAIL || !JIRA_PASSWORD) {
+if (!JIRA_HOST || !JIRA_EMAIL || !JIRA_API_TOKEN) {
   console.error(
-    'Error: JIRA_HOST, JIRA_EMAIL, and JIRA_PASSWORD environment variables are required.'
+    'Error: JIRA_HOST, JIRA_EMAIL, and JIRA_API_TOKEN environment variables are required.'
   );
-  console.error('Please create a .env file with these values.');
+  console.error('Please create a .env file with these values: JIRA_HOST, JIRA_EMAIL, and JIRA_API_TOKEN.');
   process.exit(1); // Exit if configuration is missing
 }
 
@@ -35,10 +35,7 @@ if (!JIRA_HOST || !JIRA_EMAIL || !JIRA_PASSWORD) {
 const jiraClient = new Version2Client({
   host: JIRA_HOST,
   authentication: {
-    basic: {
-      username: JIRA_EMAIL!,
-      password: JIRA_PASSWORD!,
-    },
+    personalAccessToken: JIRA_API_TOKEN!,
   },
   // newErrorHandling: true, // Removed - Handled via try/catch
 });
@@ -46,10 +43,7 @@ const jiraClient = new Version2Client({
 const agileClient = new AgileClient({
   host: JIRA_HOST,
   authentication: {
-    basic: {
-      username: JIRA_EMAIL!,
-      password: JIRA_PASSWORD!,
-    },
+    personalAccessToken: JIRA_API_TOKEN!,
   },
 });
 
@@ -210,7 +204,7 @@ export class JiraMcpServer {
     // Basic error logging
     this.server.onerror = (error: any) => console.error('[MCP Server Error]', error); // Add type for error
     process.on('SIGINT', async () => {
-      console.log('Shutting down Jira MCP server...');
+      console.error('Shutting down Jira MCP server...');
       await this.server.close();
       process.exit(0);
     });
@@ -231,7 +225,7 @@ export class JiraMcpServer {
     this.server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest) => { // Add type for request
       const toolName = request.params.name;
       const args = request.params.arguments as any; // Cast args to any after validation
-      console.log(`Received call for tool: ${toolName} with args:`, args);
+      console.error(`Received call for tool: ${toolName} with args:`, args);
 
       const toolDefinition = tools.find(t => t.name === toolName);
       if (!toolDefinition) {
@@ -289,9 +283,10 @@ export class JiraMcpServer {
                 throw new McpError(ErrorCode.InvalidParams, `Filter ${config.filter.id} has no JQL configured`);
               }
               
-              jql = filter.jql;
               if (args.jql) {
-                jql += ` AND ${args.jql}`;
+                jql = args.jql; // Use provided JQL if present
+              } else {
+                jql = filter.jql; // Otherwise, use the filter's JQL
               }
             } else if (args.projectKey) {
               // Get issues from project
@@ -342,7 +337,7 @@ export class JiraMcpServer {
             throw new McpError(ErrorCode.MethodNotFound, `Handler for tool "${toolName}" not implemented.`);
         }
 
-        console.log(`Tool ${toolName} executed successfully.`);
+        console.error(`Tool ${toolName} executed successfully.`);
         return {
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
         };
@@ -462,7 +457,7 @@ export class JiraMcpServer {
 
     const payload: any = { fields }; // Construct final payload
 
-    console.log("Creating issue with payload:", JSON.stringify(payload, null, 2));
+    console.error("Creating issue with payload:", JSON.stringify(payload, null, 2));
 
     // 6. Call Jira API
     return jiraClient.issues.createIssue(payload);
@@ -518,7 +513,7 @@ export class JiraMcpServer {
 
     // Perform field updates first (if any)
     if (Object.keys(fieldsToUpdate).length > 0) {
-        console.log(`Updating issue ${issueKey} with fields:`, fieldsToUpdate);
+        console.error(`Updating issue ${issueKey} with fields:`, fieldsToUpdate);
         await jiraClient.issues.editIssue({
             issueIdOrKey: issueKey,
             fields: fieldsToUpdate,
@@ -531,7 +526,7 @@ export class JiraMcpServer {
 
     // Perform transition if found
     if (transitionId) {
-        console.log(`Transitioning issue ${issueKey} to status "${status}" (Transition ID: ${transitionId})`);
+        console.error(`Transitioning issue ${issueKey} to status "${status}" (Transition ID: ${transitionId})`);
         await jiraClient.issues.doTransition({
             issueIdOrKey: issueKey,
             transition: { id: transitionId },

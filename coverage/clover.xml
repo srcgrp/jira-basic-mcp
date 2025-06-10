@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1744116818109" clover="3.2.0">
-  <project timestamp="1744116818109" name="All files">
-    <metrics statements="178" coveredstatements="26" conditionals="85" coveredconditionals="6" methods="22" coveredmethods="6" elements="285" coveredelements="38" complexity="0" loc="178" ncloc="178" packages="1" files="1" classes="1"/>
+<coverage generated="1749545776354" clover="3.2.0">
+  <project timestamp="1749545776354" name="All files">
+    <metrics statements="177" coveredstatements="25" conditionals="83" coveredconditionals="4" methods="21" coveredmethods="5" elements="281" coveredelements="34" complexity="0" loc="177" ncloc="177" packages="1" files="1" classes="1"/>
     <file name="index.ts" path="/home/srcgrp/Documents/Cline/MCP/jira-cline-mcp/src/index.ts">
-      <metrics statements="178" coveredstatements="26" conditionals="85" coveredconditionals="6" methods="22" coveredmethods="6"/>
+      <metrics statements="177" coveredstatements="25" conditionals="83" coveredconditionals="4" methods="21" coveredmethods="5"/>
       <line num="17" count="1" type="stmt"/>
       <line num="19" count="1" type="stmt"/>
       <line num="22" count="1" type="stmt"/>
@@ -181,7 +181,6 @@
       <line num="565" count="1" type="stmt"/>
       <line num="566" count="0" type="stmt"/>
       <line num="567" count="0" type="stmt"/>
-      <line num="575" count="2" type="cond" truecount="2" falsecount="0"/>
     </file>
   </project>
 </coverage>

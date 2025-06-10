@@ -36,13 +36,14 @@ Add to Cline MCP settings (usually in `~/.config/Code/User/globalStorage/saoudri
       "args": ["/path/to/jira-basic-mcp/build/index.js"],
       "env": {
         "JIRA_HOST": "your-instance.atlassian.net",
-        "JIRA_EMAIL": "your-email@example.com",
-        "JIRA_PASSWORD": "your-api-token"
+        "JIRA_API_TOKEN": "your-api-token"
       }
     }
   }
 }
 ```
+
+For more information on generating an API token, read the PAT documentation in Jira.
 
 ## Available Tools
 
