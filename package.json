@@ -21,7 +21,10 @@
     "test:ci": "NODE_OPTIONS=--experimental-vm-modules jest --ci --runInBand --coverage"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "0.6.0"
+    "@modelcontextprotocol/sdk": "0.6.0",
+    "ajv": "^8.17.1",
+    "dotenv": "^16.4.5",
+    "jira.js": "^3.0.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",

@@ -1,76 +1,156 @@
 import { JiraMcpServer } from '../src/index';
-import { Version2Client } from 'jira.js';
-import * as dotenv from 'dotenv';
+import { Version2Client, AgileClient } from 'jira.js';
+import { CallToolRequestSchema, McpError, ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 
-// Load test environment
-dotenv.config({ path: '.env.test' });
+// Mock the jira.js clients
+jest.mock('jira.js', () => {
+  const mockIssues = {
+    deleteIssue: jest.fn(),
+    createIssue: jest.fn(),
+    editIssue: jest.fn(),
+    getTransitions: jest.fn(),
+    doTransition: jest.fn(),
+    getIssue: jest.fn(),
+  };
+  const mockIssueSearch = {
+    searchForIssuesUsingJql: jest.fn(),
+  };
+  const mockProjects = {
+    getProject: jest.fn(),
+  };
+  const mockIssueTypes = {
+    getIssueAllTypes: jest.fn(),
+  };
+  const mockAgileBoard = {
+    getBoard: jest.fn(),
+    getConfiguration: jest.fn(),
+  };
+  const mockFilters = {
+    getFilter: jest.fn(),
+  };
+  const mockUserSearch = {
+    findUsers: jest.fn(),
+  };
+  const mockIssueLink = {
+    linkIssues: jest.fn(),
+  };
 
-describe('JiraMcpServer Integration Tests', () => {
+  return {
+    Version2Client: jest.fn(() => ({
+      issues: mockIssues,
+      issueSearch: mockIssueSearch,
+      projects: mockProjects,
+      issueTypes: mockIssueTypes,
+      filters: mockFilters,
+      userSearch: mockUserSearch,
+      issueLinks: mockIssueLink,
+    })),
+    AgileClient: jest.fn(() => ({
+      board: mockAgileBoard,
+    })),
+  };
+});
+
+// A helper to call tools on the server instance for testing
+async function callTool(server: any, name: string, args: any) {
+  const handler = server.server.getRequestHandler(CallToolRequestSchema);
+  if (!handler) {
+    throw new Error('CallToolRequest handler not registered');
+  }
+  return handler({
+    jsonrpc: '2.0',
+    method: 'tool/call',
+    params: { name, arguments: args },
+  });
+}
+
+describe('JiraMcpServer Tool Handlers', () => {
   let server: JiraMcpServer;
-  const testProjectKey = process.env.TEST_PROJECT_KEY || 'TEST';
+  let mockJiraClient: jest.Mocked<Version2Client>;
+  let mockAgileClient: jest.Mocked<AgileClient>;
 
-  beforeAll(async () => {
+  beforeAll(() => {
+    // Set dummy env vars for server initialization
+    process.env.JIRA_HOST = 'test.atlassian.net';
+    process.env.JIRA_EMAIL = 'test@example.com';
+    process.env.JIRA_API_TOKEN = 'test-token';
+  });
+
+  beforeEach(() => {
+    // Create a new server for each test to ensure isolation
     server = new JiraMcpServer();
-    await server.run();
+    
+    // Get the mocked instances
+    mockJiraClient = new Version2Client({} as any) as jest.Mocked<Version2Client>;
+    mockAgileClient = new AgileClient({} as any) as jest.Mocked<AgileClient>;
+
+    // Clear all mocks before each test
+    jest.clearAllMocks();
   });
 
-  afterAll(async () => {
-    await server.close();
-  });
+  describe('get_issues tool', () => {
+    it('should get issues for a project key', async () => {
+      const mockResponse = { total: 1, issues: [{ id: '1', key: 'TEST-1' }] };
+      (mockJiraClient.issueSearch.searchForIssuesUsingJql as jest.Mock).mockResolvedValue(mockResponse);
 
-  describe('Tool: get_issues', () => {
-    it('should return issues for a project', async () => {
-      const testJira = new Version2Client({
-        host: process.env.JIRA_HOST!,
-        authentication: {
-          basic: {
-            email: process.env.JIRA_EMAIL!,
-            apiToken: process.env.JIRA_PASSWORD!
-          }
-        }
-      });
+      const result = await callTool(server, 'get_issues', { projectKey: 'TEST' });
 
-      const response = await testJira.issueSearch.searchForIssuesUsingJql({ 
-        jql: `project = ${testProjectKey} ORDER BY created DESC`,
-        maxResults: 5
+      expect(mockJiraClient.issueSearch.searchForIssuesUsingJql).toHaveBeenCalledWith({
+        jql: 'project = "TEST"',
       });
-      
-      expect(response.issues).toBeDefined();
-      expect(response.issues?.length).toBeGreaterThanOrEqual(0);
+      expect(result.content[0].text).toBe(JSON.stringify(mockResponse, null, 2));
+    });
+
+    it('should combine project key and JQL', async () => {
+      const mockResponse = { total: 0, issues: [] };
+      (mockJiraClient.issueSearch.searchForIssuesUsingJql as jest.Mock).mockResolvedValue(mockResponse);
+
+      await callTool(server, 'get_issues', { projectKey: 'TEST', jql: 'status = Done' });
+
+      expect(mockJiraClient.issueSearch.searchForIssuesUsingJql).toHaveBeenCalledWith({
+        jql: 'project = "TEST" AND status = Done',
+      });
+    });
+
+    it('should get issues from a rapid view and combine JQL', async () => {
+      (mockAgileClient.board.getBoard as jest.Mock).mockResolvedValue({ id: 1, name: 'Test Board' });
+      (mockAgileClient.board.getConfiguration as jest.Mock).mockResolvedValue({ filter: { id: '10000' } });
+      (mockJiraClient.filters.getFilter as jest.Mock).mockResolvedValue({ jql: 'project = BOARD' });
+      const mockResponse = { total: 1, issues: [{ id: '2', key: 'BOARD-1' }] };
+      (mockJiraClient.issueSearch.searchForIssuesUsingJql as jest.Mock).mockResolvedValue(mockResponse);
+
+      await callTool(server, 'get_issues', { rapidView: 1, jql: 'assignee = currentUser()' });
+
+      expect(mockJiraClient.issueSearch.searchForIssuesUsingJql).toHaveBeenCalledWith({
+        jql: 'project = BOARD AND (assignee = currentUser())',
+      });
+    });
+
+    it('should throw McpError for invalid arguments', async () => {
+      await expect(callTool(server, 'get_issues', {})).rejects.toThrow(McpError);
+      await expect(callTool(server, 'get_issues', {})).rejects.toHaveProperty('code', ErrorCode.InvalidParams);
     });
   });
 
-  describe('Tool: create_issue', () => {
-    it('should create and delete a test issue', async () => {
-      const testJira = new Version2Client({
-        host: process.env.JIRA_HOST!,
-        authentication: {
-          basic: {
-            email: process.env.JIRA_EMAIL!,
-            apiToken: process.env.JIRA_PASSWORD!
-          }
-        }
+  describe('create_issue tool', () => {
+    it('should create an issue with required fields', async () => {
+      (mockJiraClient.projects.getProject as jest.Mock).mockResolvedValue({ id: '10000' });
+      (mockJiraClient.issueTypes.getIssueAllTypes as jest.Mock).mockResolvedValue([{ id: '10001', name: 'Task' }]);
+      const mockCreatedIssue = { id: '123', key: 'TEST-123' };
+      (mockJiraClient.issues.createIssue as jest.Mock).mockResolvedValue(mockCreatedIssue);
+
+      const result = await callTool(server, 'create_issue', {
+        projectKey: 'TEST',
+        summary: 'New test issue',
+        issueType: 'Task',
       });
 
-      // Create test issue
-      const newIssue = await testJira.issues.createIssue({
-        fields: {
-          project: { key: testProjectKey },
-          summary: 'Test Issue from MCP Server Tests',
-          issuetype: { name: 'Task' },
-          description: 'This is a test issue created by automated tests'
-        }
+      expect(mockJiraClient.issues.createIssue).toHaveBeenCalledWith(expect.objectContaining({
+        fields: expect.objectContaining({ summary: 'New test issue' }),
       });
-
-      expect(newIssue.id).toBeDefined();
-      expect(newIssue.key).toContain(testProjectKey);
-
-      // Cleanup - delete test issue
-      await testJira.issues.deleteIssue({
-        issueIdOrKey: newIssue.key
-      });
+      expect(result.content[0].text).toBe(JSON.stringify(mockCreatedIssue, null, 2));
     });
   });
 
-  // Add more test cases for other tools...
+  // ... Add more tests for update_issue, delete_issue, etc. here
 });

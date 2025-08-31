@@ -11,7 +11,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { Version2Client, AgileClient } from 'jira.js';
 import dotenv from 'dotenv';
-import Ajv from 'ajv';
+import { Ajv, type ValidateFunction } from 'ajv';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -182,7 +182,7 @@ const tools: Tool[] = [ // Use correct type Tool
 // --- MCP Server Implementation ---
 export class JiraMcpServer {
   private server: Server;
-  private toolValidators: Map<string, Ajv.ValidateFunction>;
+  private toolValidators: Map<string, ValidateFunction>;
 
   constructor() {
     this.server = new Server(
@@ -224,8 +224,8 @@ export class JiraMcpServer {
     // Handler for calling a specific tool
     this.server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest) => { // Add type for request
       const toolName = request.params.name;
-      const args = request.params.arguments as any; // Cast args to any after validation
-      console.error(`Received call for tool: ${toolName} with args:`, args);
+      const args = request.params.arguments as any;
+      console.error(`Received call for tool: ${toolName} with args:`, JSON.stringify(args));
 
       const toolDefinition = tools.find(t => t.name === toolName);
       if (!toolDefinition) {
@@ -235,7 +235,7 @@ export class JiraMcpServer {
       // Validate input arguments
       const validator = this.toolValidators.get(toolName);
       if (validator && !validator(args)) {
-         console.error(`Invalid arguments for tool ${toolName}:`, validator.errors);
+         console.error(`Invalid arguments for tool ${toolName}:`, ajv.errorsText(validator.errors));
          throw new McpError(
            ErrorCode.InvalidParams,
            `Invalid arguments for tool ${toolName}: ${ajv.errorsText(validator.errors)}`
@@ -282,12 +282,8 @@ export class JiraMcpServer {
               if (!filter.jql) {
                 throw new McpError(ErrorCode.InvalidParams, `Filter ${config.filter.id} has no JQL configured`);
               }
-              
-              if (args.jql) {
-                jql = args.jql; // Use provided JQL if present
-              } else {
-                jql = filter.jql; // Otherwise, use the filter's JQL
-              }
+              // Combine board JQL with user-provided JQL
+              jql = args.jql ? `${filter.jql} AND (${args.jql})` : filter.jql;
             } else if (args.projectKey) {
               // Get issues from project
               jql = args.jql ? `project = "${args.projectKey}" AND ${args.jql}` : `project = "${args.projectKey}"`;
@@ -513,7 +509,7 @@ export class JiraMcpServer {
 
     // Perform field updates first (if any)
     if (Object.keys(fieldsToUpdate).length > 0) {
-        console.error(`Updating issue ${issueKey} with fields:`, fieldsToUpdate);
+        console.error(`Updating issue ${issueKey} with fields:`, JSON.stringify(fieldsToUpdate));
         await jiraClient.issues.editIssue({
             issueIdOrKey: issueKey,
             fields: fieldsToUpdate,

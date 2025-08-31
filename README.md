@@ -16,13 +16,13 @@ A Model Context Protocol (MCP) server for interacting with Jira's API. Provides 
 2. Install dependencies:
 ```bash
 npm install
-```
+``` 
 
 3. Create a `.env` file with your Jira credentials:
 ```env
 JIRA_HOST=your-instance.atlassian.net
 JIRA_EMAIL=your-email@example.com
-JIRA_PASSWORD=your-api-token
+JIRA_API_TOKEN=your-api-token
 ```
 
 ## Configuration
