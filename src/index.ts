@@ -99,6 +99,29 @@ const tools: Tool[] = [ // Use correct type Tool
     },
   },
   {
+    name: 'get_assigned_issues',
+    description: 'Get issues assigned to a user, with options to filter by assignment status (current, past, or all).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        accountId: {
+          type: 'string',
+          description: 'The account ID of the user to find issues for. Use get_user to find this.',
+        },
+        status: {
+          type: 'string',
+          description: 'Filter by assignment status: "current" (default), "past", or "all".',
+          enum: ['current', 'past', 'all'],
+        },
+        additionalJql: {
+          type: 'string',
+          description: 'Optional additional JQL query to combine with the assignee search (e.g., "project = PROJ").',
+        },
+      },
+      required: ['accountId'],
+    },
+  },
+  {
     name: 'update_issue',
     description: 'Update an existing Jira issue',
     inputSchema: {
@@ -292,6 +315,25 @@ export class JiraMcpServer {
             }
             result = await jiraClient.issueSearch.searchForIssuesUsingJql({ jql });
             break;
+          case 'get_assigned_issues': {
+            const { accountId, status, additionalJql } = args;
+            let baseJql: string;
+
+            switch (status) {
+              case 'past':
+                baseJql = `assignee WAS "${accountId}"`;
+                break;
+              case 'all':
+                baseJql = `(assignee = "${accountId}" OR assignee WAS "${accountId}")`;
+                break;
+              default: // 'current' or undefined
+                baseJql = `assignee = "${accountId}"`;
+            }
+
+            const jql = additionalJql ? `${baseJql} AND (${additionalJql})` : baseJql;
+            result = await jiraClient.issueSearch.searchForIssuesUsingJql({ jql });
+            break;
+          }
           case 'update_issue':
             result = await this.handleUpdateIssue(args);
             break;

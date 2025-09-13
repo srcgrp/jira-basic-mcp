@@ -1222,11 +1222,11 @@ const ajv = new Ajv();
 // --- Jira Configuration ---
 const JIRA_HOST = process.env.JIRA_HOST;
 const JIRA_EMAIL = process.env.JIRA_EMAIL;
-const JIRA_PASSWORD = process.env.JIRA_PASSWORD;
+const JIRA_API_TOKEN = process.env.JIRA_API_TOKEN;
 &nbsp;
-<span class="missing-if-branch" title="if path not taken" >I</span>if (!JIRA_HOST || !JIRA_EMAIL || !JIRA_PASSWORD) {
+<span class="missing-if-branch" title="if path not taken" >I</span>if (!JIRA_HOST || !JIRA_EMAIL || !JIRA_API_TOKEN) {
 <span class="cstat-no" title="statement not covered" >  console.error(</span>
-    'Error: JIRA_HOST, JIRA_EMAIL, and JIRA_PASSWORD environment variables are required.'
+    'Error: JIRA_HOST, JIRA_EMAIL, and JIRA_API_TOKEN environment variables are required.'
   );
 <span class="cstat-no" title="statement not covered" >  console.error('Please create a .env file with these values.');</span>
 <span class="cstat-no" title="statement not covered" >  process.exit(1); </span>// Exit if configuration is missing
@@ -1238,7 +1238,7 @@ const jiraClient = new Version2Client({
   authentication: {
     basic: {
       username: JIRA_EMAIL!,
-      password: JIRA_PASSWORD!,
+      password: JIRA_API_TOKEN!,
     },
   },
   // newErrorHandling: true, // Removed - Handled via try/catch
@@ -1249,7 +1249,7 @@ const agileClient = new AgileClient({
   authentication: {
     basic: {
       username: JIRA_EMAIL!,
-      password: JIRA_PASSWORD!,
+      password: JIRA_API_TOKEN!,
     },
   },
 });

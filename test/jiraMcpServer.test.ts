@@ -152,5 +152,52 @@ describe('JiraMcpServer Tool Handlers', () => {
     });
   });
 
+  describe('get_assigned_issues tool', () => {
+    it('should get issues currently assigned to a user by default', async () => {
+      const mockResponse = { total: 1, issues: [{ id: '1', key: 'TEST-1' }] };
+      (mockJiraClient.issueSearch.searchForIssuesUsingJql as jest.Mock).mockResolvedValue(mockResponse);
+
+      const result = await callTool(server, 'get_assigned_issues', { accountId: 'user-123' });
+
+      expect(mockJiraClient.issueSearch.searchForIssuesUsingJql).toHaveBeenCalledWith({
+        jql: 'assignee = "user-123"',
+      });
+      expect(result.content[0].text).toBe(JSON.stringify(mockResponse, null, 2));
+    });
+
+    it('should get issues previously assigned to a user', async () => {
+      (mockJiraClient.issueSearch.searchForIssuesUsingJql as jest.Mock).mockResolvedValue({});
+      await callTool(server, 'get_assigned_issues', { accountId: 'user-123', status: 'past' });
+      expect(mockJiraClient.issueSearch.searchForIssuesUsingJql).toHaveBeenCalledWith({
+        jql: 'assignee WAS "user-123"',
+      });
+    });
+
+    it('should get all issues ever assigned to a user', async () => {
+      (mockJiraClient.issueSearch.searchForIssuesUsingJql as jest.Mock).mockResolvedValue({});
+      await callTool(server, 'get_assigned_issues', { accountId: 'user-123', status: 'all' });
+      expect(mockJiraClient.issueSearch.searchForIssuesUsingJql).toHaveBeenCalledWith({
+        jql: '(assignee = "user-123" OR assignee WAS "user-123")',
+      });
+    });
+
+    it('should combine with additional JQL', async () => {
+      (mockJiraClient.issueSearch.searchForIssuesUsingJql as jest.Mock).mockResolvedValue({});
+      await callTool(server, 'get_assigned_issues', {
+        accountId: 'user-123',
+        status: 'all',
+        additionalJql: 'project = "TEST"',
+      });
+      expect(mockJiraClient.issueSearch.searchForIssuesUsingJql).toHaveBeenCalledWith({
+        jql: '(assignee = "user-123" OR assignee WAS "user-123") AND (project = "TEST")',
+      });
+    });
+
+    it('should throw McpError for missing accountId', async () => {
+      await expect(callTool(server, 'get_assigned_issues', {})).rejects.toThrow(McpError);
+      await expect(callTool(server, 'get_assigned_issues', {})).rejects.toHaveProperty('code', ErrorCode.InvalidParams);
+    });
+  });
+
   // ... Add more tests for update_issue, delete_issue, etc. here
 });

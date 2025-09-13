@@ -61,6 +61,14 @@ Get all issues and subtasks for a project or rapid view.
 - OR `rapidView` (number|string): Rapid view ID
 - `jql` (string, optional): JQL query to filter issues
 
+### get_assigned_issues
+Get issues assigned to a user, with options to filter by assignment status.
+
+**Parameters:**
+- `accountId` (string): The account ID of the user. Use `get_user` to find this.
+- `status` (string, optional): Filter by assignment status: `"current"` (default), `"past"`, or `"all"`.
+- `additionalJql` (string, optional): Optional JQL to further filter issues (e.g., `project = "PROJ" AND updated > -1d`).
+
 ### update_issue
 Update fields of an existing Jira issue.
 
