@@ -1,22 +1,20 @@
 export default {
-  preset: 'ts-jest',
+  preset: 'ts-jest/presets/default-esm',
   testEnvironment: 'node',
   testMatch: ['**/test/**/*.test.ts'],
+  testTimeout: 10000,
+  forceExit: true,
   transform: {
     '^.+\\.tsx?$': [
       'ts-jest',
       {
         useESM: true,
-        tsconfig: 'tsconfig.json',
-        isolatedModules: true
+        tsconfig: 'tsconfig.json'
       },
     ],
   },
   moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1',
-    '^@modelcontextprotocol/sdk/server/(.*)$': '<rootDir>/node_modules/@modelcontextprotocol/sdk/dist/server/$1',
-    '^@modelcontextprotocol/sdk/types$': '<rootDir>/node_modules/@modelcontextprotocol/sdk/dist/types',
-    '^@modelcontextprotocol/sdk$': '<rootDir>/node_modules/@modelcontextprotocol/sdk/dist/index'
+    '^(\\.{1,2}/.*)\\.js$': '$1'
   },
   extensionsToTreatAsEsm: ['.ts'],
   moduleFileExtensions: ['ts', 'js', 'json'],

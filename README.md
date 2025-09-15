@@ -20,24 +20,37 @@ npm install
 
 3. Create a `.env` file with your Jira credentials:
 ```env
+# Your Jira instance URL (e.g., https://company.atlassian.net)
 JIRA_HOST=your-instance.atlassian.net
+# Your Jira account email
 JIRA_EMAIL=your-email@example.com
+# Personal Access Token generated from Atlassian account settings
 JIRA_API_TOKEN=your-api-token
 ```
 
 ## Configuration
 
-Add to Cline MCP settings (usually in `~/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json`):
+### For Cursor
+
+Add to Cursor MCP settings in `~/.cursor/mcp.json`:
 ```json
 {
   "mcpServers": {
-    "jira": {
-      "command": "node",
-      "args": ["/path/to/jira-basic-mcp/build/index.js"],
+    "jira-mcp": {
+      "autoApprove": ["get_issues", "get_issue", "create_issue"],
+      "disabled": false,
+      "timeout": 180,
+      "command": "/usr/bin/node",
+      "args": [
+        "/path/to/jira-cline-mcp/build/index.js"
+      ],
       "env": {
         "JIRA_HOST": "your-instance.atlassian.net",
-        "JIRA_API_TOKEN": "your-api-token"
-      }
+        "JIRA_EMAIL": "your-email@example.com",
+        "JIRA_API_TOKEN": "your-api-token",
+        "NODE_ENV": "production"
+      },
+      "transportType": "stdio"
     }
   }
 }
@@ -115,4 +128,16 @@ npm test
 
 Start the server:
 ```bash
-node build/index.js
+npm start
+```
+
+Use the MCP Inspector to test the server:
+```bash
+npm run inspector
+```
+
+## Technical Details
+
+- Uses Model Context Protocol SDK version 1.18.0
+- Compatible with Cursor and other MCP-enabled AI assistants
+- Built with TypeScript and Node.js
