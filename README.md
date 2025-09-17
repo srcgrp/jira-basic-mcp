@@ -37,23 +37,24 @@ Add to Cursor MCP settings in `~/.cursor/mcp.json`:
 {
   "mcpServers": {
     "jira-mcp": {
-      "autoApprove": ["get_issues", "get_issue", "create_issue"],
+      "type": "command",
+      "autoApprove": ["get_issues", "get_assigned_issues", "create_issue"],
       "disabled": false,
       "timeout": 180,
-      "command": "/usr/bin/node",
-      "args": [
-        "/path/to/jira-cline-mcp/build/index.js"
-      ],
+      "command": "node",
+      "args": ["/Path/To/jira-mcp/build/index.js"],
       "env": {
-        "JIRA_HOST": "your-instance.atlassian.net",
-        "JIRA_EMAIL": "your-email@example.com",
-        "JIRA_API_TOKEN": "your-api-token",
+        "JIRA_HOST": "You Jira host",
+        "JIRA_API_TOKEN": "Jira personal access token",
+        "JIRA_EMAIL": "Your Jira email",
         "NODE_ENV": "production"
       },
-      "transportType": "stdio"
+      "transportType": "stdio",
+      "models": ["*"]
     }
   }
 }
+
 ```
 
 For more information on generating an API token, read the PAT documentation in Jira.
