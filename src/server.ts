@@ -402,10 +402,32 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
         if (summary) fieldsToUpdate.summary = summary;
         if (description) fieldsToUpdate.description = description; // ADF format preferred
 
-        // Resolve Assignee Account ID if email provided
-        if (assignee) {
-          // Jira update requires accountId for assignee
-          fieldsToUpdate.assignee = { accountId: assignee }; // Assuming assignee is already accountId
+        // Handle assignee separately - try different approaches
+        let assigneeUpdated = false;
+        if (assignee !== undefined) {
+          try {
+            // Try using the assignUser method (if it exists)
+            console.log(
+              `Attempting to assign issue ${issueKey} to ${assignee}`
+            );
+
+            if (assignee === null || assignee === "null") {
+              // For unassigning, try setting to null in the field update
+              console.log(`Unassigning issue ${issueKey}`);
+              fieldsToUpdate.assignee = null;
+            } else {
+              // Try different account ID formats
+              console.log(`Assigning issue ${issueKey} to ${assignee}`);
+
+              // For server instances, use name field instead of accountId
+              fieldsToUpdate.assignee = { name: assignee };
+            }
+          } catch (error: any) {
+            console.error(
+              `Error preparing assignee for issue ${issueKey}:`,
+              error.message
+            );
+          }
         }
 
         // Resolve Priority ID if name provided
@@ -459,14 +481,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
 
         // Perform field updates first (if any)
         if (Object.keys(fieldsToUpdate).length > 0) {
-          console.error(
+          console.log(
             `Updating issue ${issueKey} with fields:`,
             JSON.stringify(fieldsToUpdate)
           );
-          await jiraClient.issues.editIssue({
-            issueIdOrKey: issueKey,
-            fields: fieldsToUpdate,
-          });
+          try {
+            await jiraClient.issues.editIssue({
+              issueIdOrKey: issueKey,
+              fields: fieldsToUpdate,
+            });
+          } catch (error: any) {
+            console.error(`Error updating issue ${issueKey}:`, error.message);
+            if (error.response?.data) {
+              console.error(
+                "Error details:",
+                JSON.stringify(error.response.data, null, 2)
+              );
+            }
+            throw error;
+          }
         } else if (!transitionId) {
           // Nothing to update and no transition found
           return {
@@ -624,7 +657,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
 
         // Add optional fields conditionally
         if (description) fields.description = description;
-        if (assignee) fields.assignee = { accountId: assignee };
+        if (assignee) fields.assignee = { name: assignee };
         if (labels) fields.labels = labels;
         if (componentObjects.length > 0) fields.components = componentObjects;
         if (priorityId) fields.priority = { id: priorityId };
