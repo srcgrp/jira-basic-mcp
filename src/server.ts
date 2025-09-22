@@ -15,6 +15,90 @@ const ajv = new Ajv();
 let jiraClient: Version2Client;
 let agileClient: AgileClient;
 
+// --- Sanitization Utilities ---
+function isEmptyValue(value: any): boolean {
+  if (value === null || value === undefined) return true;
+  if (typeof value === "string") return value.trim().length === 0;
+  if (Array.isArray(value)) return value.length === 0;
+  if (typeof value === "object") return Object.keys(value).length === 0;
+  return false;
+}
+
+function deepPruneEmpty(value: any): any {
+  if (Array.isArray(value)) {
+    const prunedArray = value
+      .map((item) => deepPruneEmpty(item))
+      .filter((item) => !isEmptyValue(item));
+    return prunedArray;
+  }
+  if (value && typeof value === "object") {
+    const prunedObject: any = {};
+    for (const [key, v] of Object.entries(value)) {
+      const pruned = deepPruneEmpty(v);
+      if (!isEmptyValue(pruned)) {
+        prunedObject[key] = pruned;
+      }
+    }
+    return prunedObject;
+  }
+  return value;
+}
+
+function pick<T extends Record<string, any>>(obj: T, keys: string[]): Partial<T> {
+  const out: Partial<T> = {};
+  for (const k of keys) {
+    if (k in obj) (out as any)[k] = obj[k];
+  }
+  return out;
+}
+
+// Keep the response concise: preserve counts and JQL, and for each issue keep key, id, self, and selected fields
+function sanitizeIssuesResponse(raw: any): any {
+  if (!raw || typeof raw !== "object") return raw;
+  const base = pick(raw, ["total", "startAt", "maxResults"]);
+  const issues = Array.isArray(raw.issues) ? raw.issues : [];
+  const sanitizedIssues = issues.map((issue: any) => {
+    const core = pick(issue, ["id", "key", "self"]);
+    const fields = issue.fields || {};
+    // Main useful fields from Jira issues
+    const mainFields = pick(fields, [
+      "summary",
+      "description",
+      "status",
+      "assignee",
+      "reporter",
+      "issuetype",
+      "priority",
+      "labels",
+      "components",
+      "created",
+      "updated",
+      "fixVersions",
+      "resolution",
+      "resolutiondate",
+      "parent",
+      "subtasks",
+      "duedate",
+      "project",
+    ]);
+    const prunedFields = deepPruneEmpty(mainFields);
+    const prunedCore = deepPruneEmpty(core);
+    const result = {
+      ...prunedCore,
+      fields: prunedFields,
+    };
+    return deepPruneEmpty(result);
+  });
+
+  const extras = pick(raw, ["warningMessages", "expand"]);
+  const out = {
+    ...base,
+    issues: sanitizedIssues,
+    ...extras,
+  } as any;
+  return deepPruneEmpty(out);
+}
+
 // Define tools
 const tools = [
   {
@@ -368,6 +452,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
           );
         }
         result = await jiraClient.issueSearch.searchForIssuesUsingJql({ jql });
+        // Sanitize payload to remove empty or redundant fields and keep main fields only
+        result = sanitizeIssuesResponse(result);
         break;
       }
 
@@ -390,6 +476,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
           ? `${baseJql} AND (${additionalJql})`
           : baseJql;
         result = await jiraClient.issueSearch.searchForIssuesUsingJql({ jql });
+        // Sanitize payload similarly for assigned issues list
+        result = sanitizeIssuesResponse(result);
         break;
       }
 
